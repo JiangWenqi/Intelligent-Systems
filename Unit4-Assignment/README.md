@@ -61,3 +61,8 @@ Only one member of each group should deliver the assignment.
 (𝑔1 ≥ 2)∧(𝑔2 ≥ 2)∧(𝑔3 ≥ 2)∧(𝑔 ≥ 5)
 
 ---
+
+
+# Documents
+## [How To Use Protégé](docs/Protégé.md)
+## [Ontology](docs/Ontology.md)
