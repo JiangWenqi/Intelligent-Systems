@@ -5,6 +5,10 @@
 - It’s part of the `W3C` Semantic Web framework
 - It’s a `W3C` standard
 
+# Components of OWL Ontologies
+An OWL ontology consists of `Individuals`, `Properties`, and `Classes`, which roughly correspond to Protege frames `Instances`, `Slots` and `Classes`.
+
+
 # OWL and XML
 - XML is a syntax
   - EXtensible Markup Language
