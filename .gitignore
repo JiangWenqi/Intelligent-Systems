@@ -23,3 +23,6 @@ hs_err_pid*
 
 # ide related
 .DS_Store
+Unit5-Assignment/.Rhistory
+Unit5-Assignment/data/kindle_reviews.csv
+Unit5-Assignment/data/kindle_reviews.json
