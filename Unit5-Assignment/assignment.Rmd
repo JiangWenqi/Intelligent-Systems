@@ -1,8 +1,12 @@
 ---
-title: "NLP Assignment: Kindle Store Reviews Analysis"
+title: 'NLP Assignment: Kindle Store Reviews Analysis'
 author: "Wenqi Jiang"
 date: "1/28/2022"
-output: pdf_document
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -65,7 +69,7 @@ getwd()
 ```{r rawData, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 rawData <- read.csv('data/kindle_reviews.csv') %>%
   group_by(overall) %>%
-  sample_frac(.01)
+  sample_frac(.004)
 rawData<-data.frame(rawData)
 rawData$index <- row.names(rawData)
 ```
@@ -100,7 +104,7 @@ ReviewCorpus  <- Corpus(VectorSource(rawData$reviewText))
 toSpace <- content_transformer(function (x , pattern) gsub(pattern, " ", x))
 ReviewCorpus <- tm_map(ReviewCorpus, toSpace, "/")
 ReviewCorpus <- tm_map(ReviewCorpus, toSpace, "@")
-ReviewCorpus <- tm_map(ReviewCorpus, toSpace, "\\|")
+ReviewCorpus <- tm_map(ReviewCorpus, toSpace, "\\\\|")
 ```
 
 ### c. Convert the text to lower case
@@ -152,7 +156,7 @@ head(normalWords$cleanReviewText)
 
 ### j. Merge cleaned reviews in raw data
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+```{r tdm, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 preprocessedData <- merge(rawData, normalWords, by = "index", all = TRUE)
 ```
 
@@ -164,7 +168,7 @@ preprocessedData <- merge(rawData, normalWords, by = "index", all = TRUE)
 
 We build a Term Document Matrix(TDM) to represents documents vectors in matrix form in which the rows correspond to the terms in the document, columns correspond to the documents in the corpus and cells correspond to the weights of the terms. So we can easily count out the top 30 most frequently used words in reviews.
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+```{r tdm, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
 tdm <- TermDocumentMatrix(ReviewCorpus)
 tdm <- as.matrix(tdm)
 freq = rowSums(tdm)
@@ -188,6 +192,14 @@ It also counts the number of positive and negative emotions found in each row.
 
 - To see top 10 line sentiments
 
+## 2. Sentiment analysis
+
+The Syuzhet Package comes with four sentiment dictionaries and provides a method for accessing the robust, but computationally expensive, sentiment extraction tool developed in the NLP group at Stanford.
+We can run nrc sentiment analysis to return data frame with each row classified as one of the following emotions, rather than a score: anger, anticipation, disgust, fear, joy, sadness, surprise, trust
+It also counts the number of positive and negative emotions found in each row.
+
+- To see top 10 line sentiments
+
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, results='markup'}
 d <- get_nrc_sentiment(preprocessedData$cleanReviewText)
 head(d, 10)
@@ -196,10 +208,10 @@ head(d, 10)
 - Count of words associated with each sentiment
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
-#transpose
+# transpose
 td <- data.frame(t(d))
 td_new <- data.frame(rowSums(td[2:9826]))
-#Transformation and cleaning
+# Transformation and cleaning
 names(td_new)[1] <- "count"
 td_new <- cbind("sentiment" = rownames(td_new), td_new)
 rownames(td_new) <- NULL
@@ -228,9 +240,11 @@ barplot(
 )
 ```
 
+
 ## 3. Top 20 keywords
 
 In addition, we can analyze the keywords of the reviews and then make relevant book recommendations. Here we use the Rapid Automatic Keyword Extraction Algorithm(RAKE), which is  contained in the `Udpipe` package. This natural language processing toolkit provides language-agnostic 'tokenization', 'parts of speech tagging', 'lemmatization' and 'dependency parsing' of raw text.
+
 
 ```{r keywords, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
 
@@ -257,6 +271,9 @@ barchart(
 
 ```
 
+
+
+
 # Conclusion
 
 By analyzing the reviews as described above, we were able to have a good understanding of basic data processing, as well as text normalization (including the removal of numbers, punctuation, stop words, etc.), and then calculate a matrix to count word frequencies, in addition to analyzing the sentiment of reviews, as well as keywords, by using existing NLP analysis tools (`tm`, `SnowballC`, `syuzhet` and `udpipe` etc.). Among the such reviews, "trust", "anticipation", "joy" are the most common sentiments, and " family members", "science fiction", and " small town" are the most common keywords, which can be easily seen in the plot.
@@ -267,4 +284,5 @@ By analyzing the reviews as described above, we were able to have a good underst
 1. [Text Mining and Sentiment Analysis in with R](https://www.kaggle.com/meetnagadia/text-mining-and-sentiment-analysis-in-with-r/notebook)
 2. [Natural Language Processing for predictive purposes with R](https://medium.com/broadhorizon-cmotions/natural-language-processing-for-predictive-purposes-with-r-cb65f009c12b)
 3. [UDPipe Natural Language Processing - Basic Analytical Use Cases](https://cran.r-project.org/web/packages/udpipe/vignettes/udpipe-usecase-postagging-lemmatisation.html)
+
 
