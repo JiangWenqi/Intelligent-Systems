@@ -5,15 +5,19 @@
 # Load
 library("tm") # for text mining
 library(tidyverse) # for data processing
+library(plyr)
 library("SnowballC") # for text stemming, reduces words to their root form
 library("wordcloud") # word-cloud generator
 library("syuzhet") # for sentiment analysis
-
+library(udpipe) # tokenization, Parts of Speech Tagging, Lemmatization and Dependency
+library(lattice) # for bar plot etc.
 
 setwd("/Users/vinci/git/Intelligent-Systems/Unit5-Assignment")
 getwd()
-data <- read.csv('data/kindle_reviews.csv')
-# Columns
+
+###################################################
+################# Columns #########################
+###################################################
 # asin - ID of the product, like B000FA64PK
 # helpful - helpfulness rating of the review - example: 2/3.
 # overall - rating of the product.
@@ -24,17 +28,40 @@ data <- read.csv('data/kindle_reviews.csv')
 # summary - summary of the review (description).
 # unixReviewTime - unix timestamp.
 
-## group by overall column, select 1% rows randomly and drop null value
-preprocessedData <- data  %>%
-  group_by(overall) %>%
-  sample_frac(.01) %>%
-  drop_na(X, summary, reviewText, overall) %>%
-  select(X, summary, reviewText, overall)
 
-# Quick View of the preprocessedData
-head(preprocessedData)
+#################################################
+######### 1. Data Pre-processing ################
+#################################################
+rawData <- read.csv('data/kindle_reviews.csv') %>%
+  group_by(overall) %>%
+  sample_frac(.01)
+
+rawData <- data.frame(rawData)
+
+rawData$index <- row.names(rawData)
+
+rawData %>%
+  group_by(reviewText) %>%
+  summarize(n_reviews = n()) %>%
+  mutate(pct = n_reviews / sum(n_reviews)) %>%
+  arrange(-n_reviews) %>%
+  top_n(10, n_reviews)
+
+
+
+# group by overall column, select 1% rows randomly and drop null value
+# preprocessedData <- rawData  %>%
+#   drop_na(X, summary, reviewText, overall) %>%
+#   select(X, summary, reviewText, overall)
+#
+# # Quick View of the preprocessedData
+# head(preprocessedData)
+
+#################################################
+######### 2. Word Normalization #################
+#################################################
 # Load the data as a corpus
-ReviewCorpus  <- Corpus(VectorSource(preprocessedData$reviewText))
+ReviewCorpus  <- Corpus(VectorSource(rawData$reviewText))
 
 # Replacing "/", "@" and "|" with space
 toSpace <-
@@ -60,6 +87,17 @@ ReviewCorpus <-
 # Text stemming - which reduces words to their root form
 ReviewCorpus <- tm_map(ReviewCorpus, stemDocument)
 
+normalWords <- ldply (ReviewCorpus, data.frame)
+names(normalWords)[1] <- 'cleanReviewText'
+normalWords$index <- row.names(normalWords)
+head(normalWords$cleanReviewText)
+preprocessedData <-
+  merge(rawData, normalWords, by = "index", all = TRUE)
+
+
+
+head(preprocessedData)
+
 # -----------------------------------------------------------------
 # show the most frequent terms and their frequencies in a bar plot.
 # TDM
@@ -81,32 +119,32 @@ ggplot(freq.df, aes(reorder(names, freq.high), freq.high)) +
 # -------------------------------------------------------------------------
 # regular sentiment score using get_sentiment() function and method of your choice
 syuzhet_vector <-
-  get_sentiment(preprocessedData$reviewText, method = "syuzhet")
+  get_sentiment(preprocessedData$cleanReviewText, method = "syuzhet")
 # see the first row of the vector
 head(syuzhet_vector)
 # see summary statistics of the vector
 summary(syuzhet_vector)
 # bing
 bing_vector <-
-  get_sentiment(preprocessedData$reviewText, method = "bing")
+  get_sentiment(preprocessedData$cleanReviewText, method = "bing")
 head(bing_vector)
 summary(bing_vector)
-
 #affin
 afinn_vector <-
-  get_sentiment(preprocessedData$reviewText, method = "afinn")
+  get_sentiment(preprocessedData$cleanReviewText, method = "afinn")
 head(afinn_vector)
 summary(afinn_vector)
 #compare the first row of each vector using sign function
 rbind(sign(head(syuzhet_vector)),
       sign(head(bing_vector)),
       sign(head(afinn_vector)))
-# run nrc sentiment analysis to return data frame with each row classified 
-# as one of the following emotions, rather than a score: 
+# run nrc sentiment analysis to return data frame with each row classified
+# as one of the following emotions, rather than a score:
 # anger, anticipation, disgust, fear, joy, sadness, surprise, trust
 # It also counts the number of positive and negative emotions found in each row
-d <- get_nrc_sentiment(preprocessedData$reviewText)
+d <- get_nrc_sentiment(preprocessedData$cleanReviewText)
 # head(d,10) - to see top 10 lines of the get_nrc_sentiment dataframe
+
 head (d, 10)
 #transpose
 td <- data.frame(t(d))
@@ -136,4 +174,25 @@ barplot(
   main = "Emotions in Text",
   xlab = "Percentage"
 )
+### Keywords
 
+ud_model <- udpipe_download_model(language = "english")
+ud_model <- udpipe_load_model(ud_model$file_model)
+x <- udpipe_annotate(ud_model,
+                  x = preprocessedData$cleanReviewText,
+                  doc_id = preprocessedData$index)
+x <- as.data.frame(x)
+stats <- keywords_rake(
+  x = x,
+  term = "lemma",
+  group = "doc_id",
+  relevant = x$upos %in% c("NOUN", "ADJ")
+)
+stats$key <- factor(stats$keyword, levels = rev(stats$keyword))
+barchart(
+  key ~ rake,
+  data = head(subset(stats, freq > 3), 20),
+  col = "cadetblue",
+  main = "Keywords identified by RAKE",
+  xlab = "Rake"
+)
